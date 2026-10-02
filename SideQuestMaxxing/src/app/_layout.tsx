@@ -36,6 +36,8 @@ export default function RootLayout() {
         >
             <Stack.Protected guard={!!session}>
                 <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+                <Stack.Screen name="achievements" options={{ title: "Achievements" }} />
+                <Stack.Screen name="admin" options={{ title: "Admin" }} />
                 <Stack.Screen name="questDetail" />
                 <Stack.Screen name="activeQuest" />
                 <Stack.Screen name="finishedQuest" />

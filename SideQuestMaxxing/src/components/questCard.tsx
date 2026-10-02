@@ -1,12 +1,46 @@
-import { View, StyleSheet, Text } from "react-native";
+import { View, StyleSheet, Text, Pressable } from "react-native";
 
 
 type QuestCardProps = {
     quest: any;
+    showButton?: boolean;
+    onPress?: () => void;
+    finishedQuest?: boolean;
+    disabled?: boolean;
+    buttonLabel?: string;
 };
 
 
-export default function QuestCard({ quest }: QuestCardProps) {
+export default function QuestCard({
+    quest,
+    showButton = false,
+    onPress,
+    finishedQuest = false,
+    disabled = false,
+    buttonLabel = "Quest starten",
+}: QuestCardProps) {
+
+    if (finishedQuest) {
+        return (
+
+            <View style={styles.card}>
+
+                <Text style={styles.title}>
+                    {quest.title}
+                </Text>
+
+                <Text style={styles.completedText}>
+                    Du hast diese Quest abgeschlossen!
+                </Text>
+
+                <View style={styles.info}>
+                    <Text>{quest.difficulty}</Text>
+                    <Text>+{quest.points} Punkte</Text>
+                </View>
+
+            </View>
+        )
+    }
     return (
 
         <View style={styles.card}>
@@ -27,6 +61,18 @@ export default function QuestCard({ quest }: QuestCardProps) {
                 <Text>{quest.difficulty}</Text>
                 <Text>+{quest.points} Punkte</Text>
             </View>
+
+            {showButton && (
+                <Pressable
+                    style={[styles.button, disabled && styles.buttonDisabled]}
+                    onPress={onPress}
+                    disabled={disabled}
+                >
+                    <Text style={styles.buttonText}>
+                        {buttonLabel}
+                    </Text>
+                </Pressable>
+            )}
 
         </View>
 
@@ -75,5 +121,22 @@ const styles = StyleSheet.create({
         justifyContent: "space-between",
         marginBottom: 20,
     },
+    button: {
+        padding: 15,
+        borderRadius: 12,
+        backgroundColor: "#000",
+        alignItems: "center",
+    },
 
-})
+    buttonText: {
+        color: "#fff",
+        fontWeight: "bold",
+    },
+    completedText: {
+        fontSize: 16,
+        marginBottom: 20,
+    },
+    buttonDisabled: {
+    backgroundColor: "#999",
+},
+});

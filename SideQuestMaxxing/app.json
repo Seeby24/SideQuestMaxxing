@@ -19,10 +19,7 @@
       },
       "predictiveBackGestureEnabled": false
     },
-    "web": {
-      "output": "static",
-      "favicon": "./assets/images/favicon.png"
-    },
+
     "plugins": [
       "expo-router",
       [
@@ -31,6 +28,13 @@
           "backgroundColor": "#208AEF",
           "image": "./assets/images/splash-icon.png",
           "imageWidth": 76
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "SideQuestMaxxing braucht Zugriff auf deine Fotos, um Quest-Beweise zu senden.",
+          "cameraPermission": "SideQuestMaxxing braucht die Kamera, um Quest-Beweise aufzunehmen."
         }
       ]
     ],

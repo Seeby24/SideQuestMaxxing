@@ -2,11 +2,15 @@ import { useEffect, useState } from "react";
 import { router, useLocalSearchParams } from "expo-router";
 import { Text, View, StyleSheet, Pressable } from "react-native";
 import { supabase } from "@/lib/supabase";
+import { Alert } from "react-native";
+import { getQuestStatus } from "@/lib/questStatus";
+import QuestCard from "@/components/questCard";
 
 export default function QuestDetail() {
 
     const { id } = useLocalSearchParams();
     const [quest, setQuest] = useState<any>(null);
+    const [blockedReason, setBlockedReason] = useState<string | null>(null);
 
     useEffect(() => {
         async function getQuest() {
@@ -27,80 +31,85 @@ export default function QuestDetail() {
         getQuest();
     }, [id]);
 
-async function startQuest() {
-    const { data: userData, error: userError } =
-        await supabase.auth.getUser();
+    useEffect(() => {
+        async function checkStatus() {
+            const status = await getQuestStatus();
+            if (!status) return;
 
-    if (userError || !userData.user) {
-        console.log("Nicht eingeloggt");
-        router.replace("/login");
-        return;
+            const questId = String(id);
+
+            if (status.completedIds.includes(questId)) {
+                setBlockedReason("Bereits abgeschlossen");
+            } else if (status.activeQuestId && status.activeQuestId !== questId) {
+                setBlockedReason("Andere Quest aktiv");
+            }
+        }
+
+        checkStatus();
+    }, [id]);
+
+    async function startQuest() {
+        const status = await getQuestStatus();
+
+        if (!status) {
+            router.replace("/login");
+            return;
+        }
+
+        const questId = String(id);
+
+        if (status.completedIds.includes(questId)) {
+            Alert.alert("Nicht möglich", "Diese Quest hast du schon abgeschlossen.");
+            return;
+        }
+
+        if (status.activeQuestId && status.activeQuestId !== questId) {
+            Alert.alert(
+                "Nicht möglich",
+                "Du hast bereits eine aktive Quest. Beende sie oder gib sie auf."
+            );
+            return;
+        }
+
+        const { error } = await supabase
+            .from("profiles")
+            .update({ active_quest_id: id })
+            .eq("id", status.userId);
+
+        if (error) {
+            console.log(error);
+            return;
+        }
+
+        router.push(`/activeQuest?id=${id}`);
     }
 
-    const { error } = await supabase
-        .from("profiles")
-        .update({
-            active_quest_id: id,
-        })
-        .eq("id", userData.user.id);
+    if (!quest) {
+        return (
+            <View style={styles.container}>
+                <Text>Quest wird geladen...</Text>
+            </View>
+        );
 
-    if (error) {
-        console.log(error);
-        return;
     }
 
-    router.push(`/activeQuest?id=${id}`);
-}
-
-if (!quest) {
     return (
         <View style={styles.container}>
-            <Text>Quest wird geladen...</Text>
+
+            <Text style={styles.heading}>
+                Quest Details
+            </Text>
+
+            <QuestCard
+                quest={quest}
+                onPress={startQuest}
+                showButton={true}
+                disabled={!!blockedReason}
+                buttonLabel={blockedReason ?? "Quest starten"}
+            />
+
         </View>
     );
-    
-}
-    
-
-return (
-    <View style={styles.container}>
-
-        <Text style={styles.heading}>
-            Quest Details
-        </Text>
-
-        <View style={styles.card}>
-
-            <Text style={styles.category}>
-                {quest.category}
-            </Text>
-
-            <Text style={styles.title}>
-                {quest.title}
-            </Text>
-
-            <Text style={styles.description}>
-                {quest.description}
-            </Text>
-
-            <View style={styles.info}>
-                <Text>{quest.difficulty}</Text>
-                <Text>+{quest.points} Punkte</Text>
-            </View>
-
-            <Pressable
-                style={styles.button}
-                onPress={startQuest}
-            >
-                <Text style={styles.buttonText}>
-                    Quest starten
-                </Text>
-            </Pressable>
-
-        </View>
-
-    </View>
-);
 }
 
 const styles = StyleSheet.create({
@@ -116,56 +125,4 @@ const styles = StyleSheet.create({
         marginBottom: 20,
     },
 
-    card: {
-        padding: 20,
-        borderRadius: 20,
-        backgroundColor: "#f5f5f5",
-        marginBottom: 15,
-
-        shadowColor: "#000",
-        shadowOffset: {
-            width: 0,
-            height: 3,
-        },
-        shadowOpacity: 0.15,
-        shadowRadius: 5,
-
-        elevation: 4,
-    },
-
-    category: {
-        fontSize: 14,
-        marginBottom: 10,
-        textTransform: "uppercase",
-    },
-
-    title: {
-        fontSize: 24,
-        fontWeight: "bold",
-        marginBottom: 10,
-    },
-
-    description: {
-        fontSize: 16,
-        lineHeight: 24,
-        marginBottom: 20,
-    },
-
-    info: {
-        flexDirection: "row",
-        justifyContent: "space-between",
-        marginBottom: 20,
-    },
-
-    button: {
-        padding: 15,
-        borderRadius: 12,
-        backgroundColor: "#000",
-        alignItems: "center",
-    },
-
-    buttonText: {
-        color: "#fff",
-        fontWeight: "bold",
-    },
 });

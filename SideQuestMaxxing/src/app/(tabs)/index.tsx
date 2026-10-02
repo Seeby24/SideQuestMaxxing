@@ -1,42 +1,55 @@
-import { useEffect, useState } from "react";
-import { Text, View, StyleSheet, Pressable, } from "react-native";
+import { useCallback, useState } from "react";
+import { Text, View, StyleSheet, Pressable } from "react-native";
 import { supabase } from "@/lib/supabase";
-import { router } from "expo-router";
+import { getQuestStatus } from "@/lib/questStatus";
+import { router, useFocusEffect } from "expo-router";
+import QuestCard from "@/components/questCard";
 
 export default function Home() {
   const [quests, setQuests] = useState<any[]>([]);
   const [quest, setQuest] = useState<any>(null);
+  const [activeQuest, setActiveQuest] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    async function getQuests() {
-      const { data, error } = await supabase
-        .from("quests")
-        .select("*");
+  useFocusEffect(
+    useCallback(() => {
+      async function load() {
+        const status = await getQuestStatus();
+        if (!status) return;
 
-      if (error) {
-        console.log(error);
-        return;
+        const { data, error } = await supabase.from("quests").select("*");
+
+        if (error || !data) {
+          console.log(error);
+          return;
+        }
+
+        setActiveQuest(
+          status.activeQuestId
+            ? data.find((q) => String(q.id) === status.activeQuestId) ?? null
+            : null
+        );
+
+        const available = data.filter(
+          (q) => !status.completedIds.includes(String(q.id))
+        );
+        setQuests(available);
+
+        //  Zufall Quest behalten wenn verfügbar
+        setQuest((prev: any) =>
+          prev && available.some((q) => q.id === prev.id)
+            ? prev
+            : available.length > 0
+            ? available[Math.floor(Math.random() * available.length)]
+            : null
+        );
+
+        setLoading(false);
       }
 
-      if (data && data.length > 0) {
-        setQuests(data);
-
-        const randomIndex = Math.floor(Math.random() * data.length);
-        setQuest(data[randomIndex]);
-      }
-    }
-
-    getQuests();
-  }, []);
-
-  if (!quest) {
-    return (
-      <View style={styles.container}>
-        <Text>Quest wird geladen...</Text>
-      </View>
-    );
-  }
-
+      load();
+    }, [])
+  );
 
   function getNewQuest() {
     if (!quests || quests.length <= 1) return;
@@ -49,6 +62,14 @@ export default function Home() {
     } while (newQuest.id === quest.id);
 
     setQuest(newQuest);
+  }
+
+  if (loading) {
+    return (
+      <View style={styles.container}>
+        <Text>Quest wird geladen...</Text>
+      </View>
+    );
   }
 
   return (
@@ -64,31 +85,39 @@ export default function Home() {
         </Text>
       </View>
 
-      <Text style={styles.heading}>Deine Side Quest</Text>
+      {activeQuest ? (
+        <>
+          <Text style={styles.heading}>Deine aktive Quest</Text>
 
-      <View style={styles.card}>
-        <Text style={styles.category}>{quest.category}</Text>
+          <QuestCard
+            quest={activeQuest}
+            showButton={true}
+            finishedQuest={false}
+            buttonLabel="Zur aktiven Quest"
+            onPress={() => router.push(`/activeQuest?id=${activeQuest.id}`)}
+          />
+        </>
+      ) : quest ? (
+        <>
+          <Text style={styles.heading}>Deine Side Quest</Text>
 
-        <Text style={styles.title}>
-          {quest.title}
+          <QuestCard
+            quest={quest}
+            showButton={true}
+            finishedQuest={false}
+            onPress={() => router.push(`/questDetail?id=${quest.id}`)}
+          />
+
+          <Pressable style={styles.refresh} onPress={getNewQuest}>
+            <Text style={styles.buttonText}>↻ Neue Quest</Text>
+          </Pressable>
+        </>
+      ) : (
+        <Text style={styles.heading}>
+          🎉 Du hast alle Quests abgeschlossen!
         </Text>
+      )}
 
-        <Text style={styles.description}>
-          {quest.description}
-        </Text>
-
-        <View style={styles.info}>
-          <Text>{quest.difficulty}</Text>
-          <Text>+{quest.points} Punkte</Text>
-        </View>
-
-        <Pressable style={styles.button} onPress={() => router.push(`/questDetail?id=${quest.id}`)}>
-          <Text style={styles.buttonText}>Quest starten</Text>
-        </Pressable>
-      </View>
-      <Pressable style={styles.refresh} onPress={getNewQuest}>
-        <Text style={styles.buttonText}>↻ Neue Quest</Text>
-      </Pressable>
     </View>
   );
 }
@@ -106,54 +135,6 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     marginBottom: 20,
   },
-
-    card: {
-        padding: 20,
-        borderRadius: 20,
-        backgroundColor: "#f5f5f5",
-        marginBottom: 15,
-
-        shadowColor: "#000",
-        shadowOffset: {
-            width: 0,
-            height: 3,
-        },
-        shadowOpacity: 0.15,
-        shadowRadius: 5,
-
-        elevation: 4,
-    },
-
-  category: {
-    fontSize: 14,
-    marginBottom: 10,
-    textTransform: "uppercase",
-  },
-
-  title: {
-    fontSize: 24,
-    fontWeight: "bold",
-    marginBottom: 10,
-  },
-
-  description: {
-    fontSize: 16,
-    marginBottom: 20,
-  },
-
-  info: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginBottom: 20,
-  },
-
-  button: {
-    padding: 15,
-    borderRadius: 12,
-    backgroundColor: "#000",
-    alignItems: "center",
-  },
-
   buttonText: {
     color: "#fff",
     fontWeight: "bold",
@@ -169,12 +150,10 @@ const styles = StyleSheet.create({
   welcome: {
     marginBottom: 20,
   },
-
   welcomeTitle: {
     fontSize: 28,
     fontWeight: "bold",
   },
-
   welcomeText: {
     fontSize: 16,
     marginTop: 5,

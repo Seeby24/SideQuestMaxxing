@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { router, useLocalSearchParams } from "expo-router";
 import { Text, View, StyleSheet, Pressable } from "react-native";
 import { supabase } from "@/lib/supabase";
+import QuestCard from "@/components/questCard";
+
 
 export default function FinishedQuest() {
 
@@ -44,22 +46,8 @@ export default function FinishedQuest() {
                 🎉 Quest geschafft!
             </Text>
 
-            <View style={styles.card}>
+            <QuestCard quest={quest} showButton={false} finishedQuest={true}/>
 
-                <Text style={styles.title}>
-                    {quest.title}
-                </Text>
-
-                <Text style={styles.completedText}>
-                    Du hast diese Quest abgeschlossen!
-                </Text>
-
-                <View style={styles.info}>
-                    <Text>{quest.difficulty}</Text>
-                    <Text>+{quest.points} Punkte</Text>
-                </View>
-
-            </View>
 
             <Pressable
                 style={styles.refresh}
@@ -89,51 +77,6 @@ const styles = StyleSheet.create({
         marginBottom: 20,
     },
 
-    card: {
-        padding: 20,
-        borderRadius: 20,
-        backgroundColor: "#f5f5f5",
-        marginBottom: 15,
-
-        shadowColor: "#000",
-        shadowOffset: {
-            width: 0,
-            height: 3,
-        },
-        shadowOpacity: 0.15,
-        shadowRadius: 5,
-
-        elevation: 4,
-    },
-    title: {
-        fontSize: 24,
-        fontWeight: "bold",
-        marginBottom: 10,
-    },
-
-    category: {
-        fontSize: 14,
-        marginBottom: 10,
-        textTransform: "uppercase",
-    },
-    completedText: {
-        fontSize: 16,
-        marginBottom: 20,
-    },
-
-    info: {
-        flexDirection: "row",
-        justifyContent: "space-between",
-        marginBottom: 20,
-    },
-
-    button: {
-        padding: 15,
-        borderRadius: 12,
-        backgroundColor: "#000",
-        alignItems: "center",
-    },
-
     buttonText: {
         color: "#fff",
         fontWeight: "bold",
@@ -146,17 +89,5 @@ const styles = StyleSheet.create({
         alignItems: "center",
         backgroundColor: "#000",
     },
-    welcome: {
-        marginBottom: 20,
-    },
-
-    welcomeTitle: {
-        fontSize: 28,
-        fontWeight: "bold",
-    },
-
-    welcomeText: {
-        fontSize: 16,
-        marginTop: 5,
-    },
+    
 });

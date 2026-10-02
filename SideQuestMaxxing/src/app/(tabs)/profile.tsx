@@ -1,54 +1,68 @@
+import { useCallback, useState } from "react";
+import { View, Text, StyleSheet, Pressable, ScrollView } from "react-native";
+import { router, useFocusEffect } from "expo-router";
 import { supabase } from "@/lib/supabase";
-import { useEffect, useState } from "react";
-import { View, Text, StyleSheet, Pressable } from "react-native";
+import { getLevelInfo } from "@/lib/level";
+import LevelName from "@/components/levelName";
+import { ACHIEVEMENTS, loadAchievementStats } from "@/lib/achievements";
 
 export default function Profile() {
     const [userInfo, setUserInfo] = useState<any>(null);
     const [credentials, setCredentials] = useState<any>(null);
+    const [unlocked, setUnlocked] = useState(0);
 
-    useEffect(() => {
-        async function getProfile() {
-            const { data: userData, error: userError } =
-                await supabase.auth.getUser();
+    useFocusEffect(
+        useCallback(() => {
+            async function getProfile() {
+                const { data: userData, error: userError } =
+                    await supabase.auth.getUser();
 
-            if (userError || !userData.user) {
-                console.log(userError);
-                return;
+                if (userError || !userData.user) {
+                    console.log(userError);
+                    return;
+                }
+
+                const { data, error } = await supabase
+                    .from("profiles")
+                    .select("*")
+                    .eq("id", userData.user.id)
+                    .single();
+
+                if (error) {
+                    console.log(error);
+                    return;
+                }
+
+                setUserInfo(data);
+                setCredentials(userData.user);
+
+                const stats = await loadAchievementStats();
+                if (stats) {
+                    setUnlocked(ACHIEVEMENTS.filter((a) => a.check(stats)).length);
+                }
             }
 
-            const { data, error } = await supabase
-                .from("profiles")
-                .select("*")
-                .eq("id", userData.user.id)
-                .single();
-
-            if (error) {
-                console.log(error);
-                return;
-            }
-
-            setUserInfo(data);
-            setCredentials(userData.user);
-        }
-
-        getProfile();
-    }, []);
+            getProfile();
+        }, [])
+    );
 
     if (!userInfo || !credentials) {
         return (
-            <View style={styles.container}>
+            <View style={styles.loading}>
                 <Text>User wird geladen...</Text>
             </View>
         );
     }
 
-    const xpForNextLevel = 500;
-    const currentLevelXp = userInfo.points % xpForNextLevel;
-    const progress = (currentLevelXp / xpForNextLevel) * 100;
-    const xpUntilNextLevel = xpForNextLevel - currentLevelXp;
+    const { level, xpInLevel, xpForNext, isMax } = getLevelInfo(userInfo.points);
+    const progress = isMax ? 100 : (xpInLevel / xpForNext) * 100;
 
     return (
-        <View style={styles.container}>
+        <ScrollView
+            style={styles.container}
+            contentContainerStyle={styles.content}
+            showsVerticalScrollIndicator={false}
+        >
 
             <View style={styles.card}>
                 <Text style={styles.heading}>
@@ -71,14 +85,12 @@ export default function Profile() {
 
             <View style={styles.card}>
 
-                <View style={styles.levelHeader}>
-                    <Text style={styles.heading}>
-                        Dein Fortschritt
-                    </Text>
+                <Text style={styles.heading}>
+                    Dein Fortschritt
+                </Text>
 
-                    <Text style={styles.levelBadge}>
-                        Level {userInfo.level}
-                    </Text>
+                <View style={styles.levelRow}>
+                    <LevelName level={level} />
                 </View>
 
                 <Text style={styles.points}>
@@ -97,47 +109,66 @@ export default function Profile() {
                 </View>
 
                 <Text style={styles.progressText}>
-                    {xpUntilNextLevel} XP bis Level {userInfo.level + 1}
+                    {isMax
+                        ? "Max-Level erreicht 👑"
+                        : `${xpForNext - xpInLevel} XP bis Level ${level + 1}`}
                 </Text>
             </View>
 
-            <View style={styles.card}>
+            <Pressable
+                style={styles.card}
+                onPress={() => router.push("/achievements")}
+            >
                 <Text style={styles.heading}>
                     🏆 Achievements
                 </Text>
 
                 <Text style={styles.achievementCount}>
-                    0 / 35
+                    {unlocked} / {ACHIEVEMENTS.length}
                 </Text>
 
                 <Text style={styles.text}>
-                    Schliesse Quests ab, um neue Achievements freizuschalten!
+                    Tippe, um deine Achievements zu sehen →
                 </Text>
-            </View>
-            <Pressable style={styles.button}onPress={() => supabase.auth.signOut()}>
+            </Pressable>
+
+            {userInfo.is_admin && (
+                <Pressable
+                    style={[styles.button, { marginBottom: 10 }]}
+                    onPress={() => router.push("/admin")}
+                >
+                    <Text style={styles.buttonText}>🛠 Fotos prüfen</Text>
+                </Pressable>
+            )}
+
+            <Pressable
+                style={styles.button}
+                onPress={() => supabase.auth.signOut()}
+            >
                 <Text style={styles.buttonText}>Abmelden</Text>
             </Pressable>
 
-        </View>
+        </ScrollView>
     );
 }
 
 const styles = StyleSheet.create({
     container: {
         flex: 1,
+    },
+
+    content: {
         padding: 20,
         paddingTop: 70,
-        justifyContent: "center",
+        paddingBottom: 40,
     },
 
-    welcome: {
-        marginBottom: 20,
+    loading: {
+        flex: 1,
+        padding: 20,
+        paddingTop: 70,
     },
 
-    welcomeTitle: {
-        fontSize: 28,
-        fontWeight: "bold",
-    },
     card: {
         padding: 20,
         borderRadius: 20,
@@ -154,6 +185,7 @@ const styles = StyleSheet.create({
 
         elevation: 4,
     },
+
     heading: {
         fontSize: 24,
         fontWeight: "bold",
@@ -169,15 +201,6 @@ const styles = StyleSheet.create({
         flexDirection: "row",
         justifyContent: "space-between",
         alignItems: "center",
-    },
-
-    levelBadge: {
-        backgroundColor: "#000",
-        color: "#fff",
-        paddingHorizontal: 12,
-        paddingVertical: 6,
-        borderRadius: 20,
-        fontWeight: "bold",
     },
 
     points: {
@@ -210,6 +233,7 @@ const styles = StyleSheet.create({
         fontWeight: "bold",
         marginBottom: 10,
     },
+
     button: {
         padding: 15,
         borderRadius: 12,
@@ -221,4 +245,8 @@ const styles = StyleSheet.create({
         color: "#fff",
         fontWeight: "bold",
     },
+    levelRow: {
+    alignSelf: "flex-start",
+    marginBottom: 15,
+},
 });
