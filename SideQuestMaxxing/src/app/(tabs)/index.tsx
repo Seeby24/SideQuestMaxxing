@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Text, View, StyleSheet, Pressable, } from "react-native";
 import { supabase } from "@/lib/supabase";
+import { router } from "expo-router";
 
 export default function Home() {
   const [quests, setQuests] = useState<any[]>([]);
@@ -81,7 +82,7 @@ export default function Home() {
           <Text>+{quest.points} Punkte</Text>
         </View>
 
-        <Pressable style={styles.button}>
+        <Pressable style={styles.button} onPress={() => router.push(`/questDetail?id=${quest.id}`)}>
           <Text style={styles.buttonText}>Quest starten</Text>
         </Pressable>
       </View>
@@ -106,11 +107,22 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
 
-  card: {
-    padding: 20,
-    borderRadius: 20,
-    backgroundColor: "#eeeeee",
-  },
+    card: {
+        padding: 20,
+        borderRadius: 20,
+        backgroundColor: "#f5f5f5",
+        marginBottom: 15,
+
+        shadowColor: "#000",
+        shadowOffset: {
+            width: 0,
+            height: 3,
+        },
+        shadowOpacity: 0.15,
+        shadowRadius: 5,
+
+        elevation: 4,
+    },
 
   category: {
     fontSize: 14,
